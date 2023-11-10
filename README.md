@@ -7,13 +7,13 @@ Create a Go HTTP server which returns total number of request made to the server
 Clone the project
 
 ```bash
-  git clone REPO
+  git clone https://github.com/darshan-bhattacharyya/go-coding-challenge.git
 ```
 
 Go to the project directory
 
 ```bash
-  cd MYPROJECT
+  cd go-coding-challenge
 ```
 
 Build the executable
@@ -34,7 +34,7 @@ Stop the server using Control + C on Mac or Ctrl + C on Windows
 ## Solution Overview
 
 I used a mutex based counter approach to keep track of the counts that are reaching the server. For this approach I created the following struct -
-```
+```go
 type Counter struct {
 	mu           sync.RWMutex
 	jsonFile     string
@@ -46,9 +46,11 @@ type Counter struct {
 ``` 
 Here I am keeping track of the window start, end, length and as well as count. While each Increament operation we check whether the current time falls within this window. If not we reset the window and count.
 
+Counting is done on the middleware level and obtained value of the count is forwarded to the handler function by using request header value.
+
 To keep the count values and window position persistent I am saving this values in a json file while graceful shutdown of the system. Following format is used.
 
-```
+```json
 {
     "count": 1,
     "windowStart": 1699537335123,
@@ -57,5 +59,33 @@ To keep the count values and window position persistent I am saving this values 
 }
 ```
 
-Graceful shutdown is handled by listening for SIGINT and SIGTERM.
+Graceful shutdown is handled by listening for SIGINT and SIGTERM on a signal channel.
 
+## Unit Test Cases
+
+Run unit tests with following command.
+```bash
+  go test -cover
+```
+
+Following unit test cases are used the validate the system.
+
+```go
+func TestConcurrentCallsToServer(t *testing.T)
+```
+To test the concurrency capabilities of the system by throwing concurrent request to the system and checking if the count values are unique each time.
+
+```go
+func TestWindowReset(t *testing.T)
+```
+To check if the window is getting reset after said amount of time.
+
+```go
+func TestPersistCounter(t *testing.T)
+```
+To check data persistent capability.
+
+```go
+func TestNewCounter(t *testing.T) 
+```
+To test the constructor.
