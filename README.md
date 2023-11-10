@@ -1,6 +1,9 @@
 # Problem Statement
 Create a Go HTTP server which returns total number of request made to the server in previous 60 seconds window. Also the server should persist the counts in order to start where it left off while being restarted.
 
+## Software Requirement
+
+go 1.20
 
 ## Run Locally
 
