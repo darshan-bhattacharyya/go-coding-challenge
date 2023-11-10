@@ -46,6 +46,11 @@ type Counter struct {
 ``` 
 Here I am keeping track of the window start, end, length and as well as count. While each Increament operation we check whether the current time falls within this window. If not we reset the window and count.
 
+```go
+func NewCounter(windowLength int, counterFile string) *Counter )
+```
+The above constructor is provided to create a new instance of the counter (Pass window length in seconds).
+
 Counting is done on the middleware level and obtained value of the count is forwarded to the handler function by using request header value.
 
 To keep the count values and window position persistent I am saving this values in a json file while graceful shutdown of the system. Following format is used.
@@ -68,7 +73,7 @@ Run unit tests with following command.
   go test -cover
 ```
 
-Following unit test cases are used the validate the system.
+Following unit test cases are used to validate the system.
 
 ```go
 func TestConcurrentCallsToServer(t *testing.T)
