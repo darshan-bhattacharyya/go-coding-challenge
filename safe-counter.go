@@ -9,23 +9,23 @@ import (
 )
 
 type JsonCounter struct {
-	Count        int64 `json:"count"`
-	WindowStart  int64 `json:"windowStart"`
-	WindowEnd    int64 `json:"windowEnd"`
-	WindowLength int64 `json:"windowLength"`
+	RequestTimestamps []int64 `json:"requestTimestamps"`
+	WindowStart       int64   `json:"windowStart"`
+	WindowEnd         int64   `json:"windowEnd"`
+	WindowLength      int64   `json:"windowLength"`
 }
 
 type Counter struct {
-	mu           sync.RWMutex
-	jsonFile     string
-	count        int64
-	windowStart  time.Time
-	windowEnd    time.Time
-	windowLength time.Duration
+	mu                sync.RWMutex
+	jsonFile          string
+	requestTimestamps []time.Time
+	windowStart       time.Time
+	windowEnd         time.Time
+	windowLength      time.Duration
 }
 
 func NewCounter(windowLength int, counterFile string) *Counter {
-	counter := &Counter{jsonFile: counterFile}
+	counter := &Counter{jsonFile: counterFile, requestTimestamps: make([]time.Time, 0, 1000)}
 	jsonBytes, err := os.ReadFile(counterFile)
 	jsonCounter := JsonCounter{}
 	if err != nil {
@@ -39,10 +39,12 @@ func NewCounter(windowLength int, counterFile string) *Counter {
 	}
 	counter = &Counter{
 		jsonFile:     counterFile,
-		count:        jsonCounter.Count,
 		windowStart:  time.UnixMilli(jsonCounter.WindowStart),
 		windowEnd:    time.UnixMilli(jsonCounter.WindowEnd),
 		windowLength: time.Duration(jsonCounter.WindowLength),
+	}
+	for _, unixTimestamp := range jsonCounter.RequestTimestamps {
+		counter.requestTimestamps = append(counter.requestTimestamps, time.UnixMilli(unixTimestamp))
 	}
 
 	return counter
@@ -52,29 +54,29 @@ func (c *Counter) Start(windowLength int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.windowLength = time.Duration(windowLength)
-	c.windowStart = time.Now()
-	c.windowEnd = c.windowStart.Add(time.Second * c.windowLength)
-	c.count = 0
 }
 
-func (c *Counter) Increment() int64 {
+func (c *Counter) Increment() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	currentTime := time.Now()
-	if currentTime.Before(c.windowEnd) {
-		c.count += 1
-		return c.count
+	c.windowEnd = time.Now()
+	c.windowStart = c.windowEnd.Add(-(time.Second * c.windowLength))
+	i := 0
+	c.requestTimestamps = append(c.requestTimestamps, c.windowEnd)
+	for _, timestamp := range c.requestTimestamps {
+		if timestamp.After(c.windowStart) {
+			c.requestTimestamps[i] = timestamp
+			i += 1
+		}
 	}
-	c.count = 1
-	c.windowStart = currentTime
-	c.windowEnd = currentTime.Add(time.Second * c.windowLength)
-	return c.count
+	c.requestTimestamps = c.requestTimestamps[0:i]
+	return len(c.requestTimestamps)
 }
 
-func (c *Counter) Value() int64 {
+func (c *Counter) Value() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.count
+	return len(c.requestTimestamps)
 }
 
 func (c *Counter) SaveToJSON() error {
@@ -84,10 +86,13 @@ func (c *Counter) SaveToJSON() error {
 	}
 
 	jsonCounter := JsonCounter{
-		Count:        c.count,
 		WindowStart:  c.windowStart.UnixMilli(),
 		WindowEnd:    c.windowEnd.UnixMilli(),
 		WindowLength: int64(c.windowLength),
+	}
+
+	for _, timestamp := range c.requestTimestamps {
+		jsonCounter.RequestTimestamps = append(jsonCounter.RequestTimestamps, timestamp.UnixMilli())
 	}
 
 	log.Print("Created json file")

@@ -84,7 +84,7 @@ func TestConcurrentCallsToServer(t *testing.T) {
 	}
 }
 
-func TestWindowReset(t *testing.T) {
+func TestWindowMoving(t *testing.T) {
 	counter := NewCounter(10, TEST_COUNTER_JSON_CREATE_AND_NOT_EXISTS)
 
 	if counter == nil {
@@ -97,18 +97,17 @@ func TestWindowReset(t *testing.T) {
 
 	count := 0
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		count = int(counter.Increment())
+		time.Sleep(time.Second)
 	}
-	if count != 100 {
+	if count != 10 {
 		t.Errorf("Count expected: 100, actual: %d", count)
 	}
-	t.Log("Received correct counts")
-	time.Sleep(time.Second * 10)
-
+	time.Sleep(time.Second)
 	count = int(counter.Increment())
-	if count != 1 {
-		t.Errorf("Count expected: 1, actual: %d", count)
+	if count > 10 {
+		t.Errorf("Count expected less than 10: actual: %d", count)
 	}
 	t.Log("Count reset to new window")
 }
@@ -143,8 +142,8 @@ func TestPersistCounter(t *testing.T) {
 		t.Fatalf("error unmarshaling counter file: %v", err)
 	}
 
-	if jsonCounter.Count != int64(count) {
-		t.Errorf("Expected count: %d, actual: %d", count, jsonCounter.Count)
+	if len(jsonCounter.RequestTimestamps) != count {
+		t.Errorf("Expected count: %d, actual: %d", count, len(jsonCounter.RequestTimestamps))
 	}
 	err = os.Remove(TEST_COUNTER_JSON_CREATE_AND_NOT_EXISTS)
 	if err != nil {

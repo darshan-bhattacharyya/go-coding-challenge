@@ -39,15 +39,15 @@ Stop the server using Control + C on Mac or Ctrl + C on Windows
 I used a mutex based counter approach to keep track of the counts that are reaching the server. For this approach I created the following struct -
 ```go
 type Counter struct {
-	mu           sync.RWMutex
-	jsonFile     string
-	count        int64
-	windowStart  time.Time
-	windowEnd    time.Time
-	windowLength time.Duration
+	mu                sync.RWMutex
+	jsonFile          string
+	requestTimestamps []time.Time
+	windowStart       time.Time
+	windowEnd         time.Time
+	windowLength      time.Duration
 }
 ``` 
-Here I am keeping track of the window start, end, length and as well as count. While each Increament operation we check whether the current time falls within this window. If not we reset the window and count.
+Here I am keeping track of the window start, end, length and as well as count as list of timestamps when request are reaching. While each Increament operation we update the current as window end and we check how many requests has expired and send the total number of valid requests.
 
 ```go
 func NewCounter(windowLength int, counterFile string) *Counter )
@@ -60,7 +60,7 @@ To keep the count values and window position persistent I am saving this values 
 
 ```json
 {
-    "count": 1,
+    "requestTimestamps":[1699696447307,1699696452143,1699696458239,1699696485250],
     "windowStart": 1699537335123,
     "windowEnd": 1699537395123,
     "windowLength": 10
@@ -84,9 +84,9 @@ func TestConcurrentCallsToServer(t *testing.T)
 To test the concurrency capabilities of the system by throwing concurrent request to the system and checking if the count values are unique each time.
 
 ```go
-func TestWindowReset(t *testing.T)
+func TestWindowMoving(t *testing.T)
 ```
-To check if the window is getting reset after said amount of time.
+To check if the window is moving after said amount of time.
 
 ```go
 func TestPersistCounter(t *testing.T)
